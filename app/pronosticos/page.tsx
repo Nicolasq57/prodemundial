@@ -31,6 +31,8 @@ export default function PronosticosPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [cerrado, setCerrado] = useState(false)
+  const [fechaCierre, setFechaCierre] = useState<Date | null>(null)
 
   useEffect(() => {
     async function init() {
@@ -55,6 +57,17 @@ export default function PronosticosPage() {
 
       setMatches(matchesData)
 
+      // Determinar si está cerrado: primer partido ya empezó
+      if (matchesData.length > 0) {
+        const primerPartido = new Date(
+          matchesData.reduce((min, m) =>
+            m.match_date < min ? m.match_date : min, matchesData[0].match_date
+          )
+        )
+        setFechaCierre(primerPartido)
+        setCerrado(new Date() >= primerPartido)
+      }
+
       const predMap: PredMap = {}
       for (const m of matchesData) {
         predMap[m.id] = { home: '', away: '' }
@@ -70,6 +83,7 @@ export default function PronosticosPage() {
   }, [router])
 
   function handleChange(matchId: number, side: 'home' | 'away', value: string) {
+    if (cerrado) return
     if (value !== '' && (isNaN(Number(value)) || Number(value) < 0 || Number(value) > 20)) return
     setPreds(prev => ({
       ...prev,
@@ -85,6 +99,8 @@ export default function PronosticosPage() {
   }
 
   async function handleSubmit() {
+    if (cerrado) return
+
     const vacios = matches.filter(m => {
       const p = preds[m.id]
       return !p || p.home === '' || p.away === ''
@@ -149,7 +165,11 @@ export default function PronosticosPage() {
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Mis Pronósticos</h1>
           <p className="text-gray-400 text-sm">
-            Hola <strong className="text-white">{nombreParticipante}</strong>. Completá los 72 partidos y guardá.
+            Hola <strong className="text-white">{nombreParticipante}</strong>.
+            {cerrado
+              ? ' El torneo ya empezó, tus pronósticos están bloqueados.'
+              : ' Completá los 72 partidos y guardá.'
+            }
           </p>
         </div>
         <div className="text-right">
@@ -158,7 +178,21 @@ export default function PronosticosPage() {
         </div>
       </div>
 
-      {saved && (
+      {/* Banner cerrado */}
+      {cerrado && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/25 rounded-xl flex items-start gap-3">
+          <span className="text-2xl">🔒</span>
+          <div>
+            <p className="text-red-300 font-medium">Pronósticos cerrados</p>
+            <p className="text-red-300/60 text-sm mt-0.5">
+              El Mundial arrancó el {fechaCierre ? formatFecha(fechaCierre.toISOString()) : ''}. Solo podés consultar tus pronósticos.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner guardado */}
+      {saved && !cerrado && (
         <div className="mb-6 p-4 bg-green-500/15 border border-green-500/30 rounded-xl text-green-300 font-medium">
           ✅ Pronósticos guardados correctamente. Podés editarlos hasta que empiece el primer partido.
         </div>
@@ -173,9 +207,9 @@ export default function PronosticosPage() {
             <div className="flex flex-col gap-3">
               {partidos.map(m => {
                 const p = preds[m.id] ?? { home: '', away: '' }
-                const esFinished = m.status === 'finished'
+                const bloqueado = cerrado || m.status === 'finished'
                 return (
-                  <div key={m.id} className="flex items-center gap-3">
+                  <div key={m.id} className={`flex items-center gap-3 ${bloqueado && cerrado ? 'opacity-75' : ''}`}>
                     <span className="text-gray-300 text-sm flex-1 text-right truncate">{m.team_home}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <input
@@ -185,7 +219,7 @@ export default function PronosticosPage() {
                         className="score-input"
                         value={p.home}
                         onChange={e => handleChange(m.id, 'home', e.target.value)}
-                        disabled={esFinished}
+                        disabled={bloqueado}
                         placeholder="—"
                       />
                       <span className="text-gray-500 font-bold">:</span>
@@ -196,7 +230,7 @@ export default function PronosticosPage() {
                         className="score-input"
                         value={p.away}
                         onChange={e => handleChange(m.id, 'away', e.target.value)}
-                        disabled={esFinished}
+                        disabled={bloqueado}
                         placeholder="—"
                       />
                     </div>
@@ -212,24 +246,27 @@ export default function PronosticosPage() {
         ))}
       </div>
 
-      <div className="sticky bottom-6 mt-8">
-        <div className="bg-[#0a0f1e]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex items-center gap-4 max-w-lg mx-auto shadow-2xl">
-          <div className="text-sm text-gray-400 flex-1">
-            {completados() < 72
-              ? <span className="text-yellow-400">{72 - completados()} partidos sin completar</span>
-              : <span className="text-green-400">✓ Todos los partidos completados</span>
-            }
+      {/* Barra inferior — solo si no está cerrado */}
+      {!cerrado && (
+        <div className="sticky bottom-6 mt-8">
+          <div className="bg-[#0a0f1e]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex items-center gap-4 max-w-lg mx-auto shadow-2xl">
+            <div className="text-sm text-gray-400 flex-1">
+              {completados() < 72
+                ? <span className="text-yellow-400">{72 - completados()} partidos sin completar</span>
+                : <span className="text-green-400">✓ Todos los partidos completados</span>
+              }
+            </div>
+            {error && <span className="text-red-400 text-xs">{error}</span>}
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="px-6 py-2.5 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-xl transition-colors shrink-0"
+            >
+              {saving ? 'Guardando...' : 'Guardar pronósticos'}
+            </button>
           </div>
-          {error && <span className="text-red-400 text-xs">{error}</span>}
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="px-6 py-2.5 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-xl transition-colors shrink-0"
-          >
-            {saving ? 'Guardando...' : 'Guardar pronósticos'}
-          </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
