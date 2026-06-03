@@ -5,9 +5,10 @@ export default function Home() {
     <div className="flex flex-col items-center justify-center min-h-[70vh] text-center gap-8">
       <div>
         <div className="text-7xl mb-4">⚽🏆</div>
-        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3">
-          Prode Mundial 2026
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-1">
+          PRODE AIF
         </h1>
+        <p className="text-green-400 font-medium mb-3">Mundial 2026</p>
         <p className="text-gray-400 text-lg max-w-md">
           Cargá tus pronósticos de la fase de grupos y competí con tus compañeros en tiempo real.
         </p>
