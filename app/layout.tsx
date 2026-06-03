@@ -27,6 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/partidos" className="px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-gray-300 hover:text-white">
                 Partidos
               </Link>
+              <Link href="/registro" className="px-3 py-1.5 bg-green-500 hover:bg-green-400 text-black font-bold rounded-lg transition-colors">
+                Ingresar
+              </Link>
             </div>
           </div>
         </nav>
