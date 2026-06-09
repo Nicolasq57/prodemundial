@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     id: number
     utcDate: string
     stage: string
+    matchday: number
     group: string
     homeTeam: { name: string; shortName: string; crest: string }
     awayTeam: { name: string; shortName: string; crest: string }
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   const rows = matches.map((m, idx) => ({
     id: m.id ?? idx + 1,
     match_date: m.utcDate,
+    matchday: m.matchday ?? 1,
     group_name: m.group?.replace('GROUP_', '') ?? '?',
     team_home: m.homeTeam.shortName ?? m.homeTeam.name,
     team_away: m.awayTeam.shortName ?? m.awayTeam.name,

@@ -9,6 +9,7 @@ interface Match {
   group_name: string
   team_home: string
   team_away: string
+  matchday: number
   status: string
 }
 
@@ -25,13 +26,14 @@ export default function PronosticosPage() {
   const router = useRouter()
   const [participantId, setParticipantId] = useState<string | null>(null)
   const [nombreParticipante, setNombreParticipante] = useState('')
-  const [matches, setMatches] = useState<Match[]>([])
+  const [allMatches, setAllMatches] = useState<Match[]>([])
   const [preds, setPreds] = useState<PredMap>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [ahora, setAhora] = useState(() => new Date())
+  const [fechaActiva, setFechaActiva] = useState(1)
 
   useEffect(() => {
     async function init() {
@@ -54,8 +56,17 @@ export default function PronosticosPage() {
       const matchesData: Match[] = await matchesRes.json()
       const predsData: Array<{ match_id: number; predicted_home: number; predicted_away: number }> = await predsRes.json()
 
-      setMatches(matchesData)
-      setAhora(new Date())
+      const now = new Date()
+      setAhora(now)
+      setAllMatches(matchesData)
+
+      // Determinar qué fecha mostrar: la más baja que todavía tenga partidos sin empezar
+      // o la última disponible si todo empezó
+      const fechasDisponibles = [...new Set(matchesData.map(m => m.matchday))].sort()
+      const fechaAbierta = fechasDisponibles.find(f =>
+        matchesData.filter(m => m.matchday === f).some(m => now < new Date(m.match_date))
+      )
+      setFechaActiva(fechaAbierta ?? fechasDisponibles[fechasDisponibles.length - 1] ?? 1)
 
       const predMap: PredMap = {}
       for (const m of matchesData) {
@@ -83,19 +94,10 @@ export default function PronosticosPage() {
     }))
   }
 
-  function completados() {
-    return matches.filter(m => {
-      const p = preds[m.id]
-      return p && p.home !== '' && p.away !== ''
-    }).length
-  }
-
-  const partidosBloqueados = matches.filter(esBloqueado).length
-  const todoBloqueado = matches.length > 0 && partidosBloqueados === matches.length
-
   async function handleSubmit() {
-    const vacios = matches.filter(m => {
-      if (esBloqueado(m)) return false // ignorar los ya bloqueados
+    const matchesFecha = allMatches.filter(m => m.matchday === fechaActiva)
+    const vacios = matchesFecha.filter(m => {
+      if (esBloqueado(m)) return false
       const p = preds[m.id]
       return !p || p.home === '' || p.away === ''
     })
@@ -107,10 +109,10 @@ export default function PronosticosPage() {
     setSaving(true)
     setError('')
 
-    const predictions = matches.map(m => ({
+    const predictions = matchesFecha.map(m => ({
       match_id: m.id,
-      predicted_home: Number(preds[m.id].home),
-      predicted_away: Number(preds[m.id].away),
+      predicted_home: Number(preds[m.id]?.home ?? 0),
+      predicted_away: Number(preds[m.id]?.away ?? 0),
     }))
 
     const res = await fetch('/api/pronosticos', {
@@ -138,7 +140,7 @@ export default function PronosticosPage() {
     )
   }
 
-  if (matches.length === 0) {
+  if (allMatches.length === 0) {
     return (
       <div className="text-center py-16 text-gray-400">
         Los partidos todavía no fueron cargados. Volvé más tarde.
@@ -146,8 +148,17 @@ export default function PronosticosPage() {
     )
   }
 
+  const fechasDisponibles = [...new Set(allMatches.map(m => m.matchday))].sort()
+  const matchesFecha = allMatches.filter(m => m.matchday === fechaActiva)
+  const todoBloqueadoFecha = matchesFecha.every(esBloqueado)
+  const completadosFecha = matchesFecha.filter(m => {
+    const p = preds[m.id]
+    return p && p.home !== '' && p.away !== ''
+  }).length
+
+  // Agrupar por grupo
   const grupos = new Map<string, Match[]>()
-  for (const m of matches) {
+  for (const m of matchesFecha) {
     if (!grupos.has(m.group_name)) grupos.set(m.group_name, [])
     grupos.get(m.group_name)!.push(m)
   }
@@ -155,56 +166,72 @@ export default function PronosticosPage() {
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold text-white mb-1">Mis Pronósticos</h1>
           <p className="text-gray-400 text-sm">
             Hola <strong className="text-white">{nombreParticipante}</strong>.
-            {todoBloqueado
-              ? ' El torneo ya empezó, tus pronósticos están bloqueados.'
-              : partidosBloqueados > 0
-              ? ` ${partidosBloqueados} partido${partidosBloqueados > 1 ? 's' : ''} bloqueado${partidosBloqueados > 1 ? 's' : ''}, el resto todavía podés editarlo.`
-              : ' Completá los 72 partidos y guardá.'
+            {todoBloqueadoFecha
+              ? ' Esta fecha ya empezó, solo podés consultar.'
+              : ' Completá todos los partidos de la fecha y guardá.'
             }
           </p>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-green-400">{completados()}/72</div>
+          <div className="text-2xl font-bold text-green-400">{completadosFecha}/{matchesFecha.length}</div>
           <div className="text-xs text-gray-500">completados</div>
         </div>
       </div>
 
-      {/* Banner todo cerrado */}
-      {todoBloqueado && (
+      {/* Selector de fechas */}
+      {fechasDisponibles.length > 1 && (
+        <div className="flex gap-2 mb-6">
+          {fechasDisponibles.map(f => {
+            const matchesF = allMatches.filter(m => m.matchday === f)
+            const bloqueadaF = matchesF.every(esBloqueado)
+            const completadaF = matchesF.every(m => {
+              const p = preds[m.id]
+              return p && p.home !== '' && p.away !== ''
+            })
+            return (
+              <button
+                key={f}
+                onClick={() => { setFechaActiva(f); setSaved(false); setError('') }}
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  fechaActiva === f
+                    ? 'bg-green-500 text-black'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                Fecha {f}
+                {bloqueadaF ? ' 🔒' : completadaF ? ' ✓' : ''}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Banner bloqueado */}
+      {todoBloqueadoFecha && (
         <div className="mb-6 p-4 bg-red-500/10 border border-red-500/25 rounded-xl flex items-start gap-3">
           <span className="text-2xl">🔒</span>
           <div>
-            <p className="text-red-300 font-medium">Pronósticos cerrados</p>
-            <p className="text-red-300/60 text-sm mt-0.5">
-              Todos los partidos ya empezaron. Solo podés consultar tus pronósticos.
-            </p>
+            <p className="text-red-300 font-medium">Fecha {fechaActiva} cerrada</p>
+            <p className="text-red-300/60 text-sm mt-0.5">Los partidos de esta fecha ya empezaron. Solo podés consultar.</p>
           </div>
         </div>
       )}
 
-      {/* Banner parcialmente cerrado */}
-      {!todoBloqueado && partidosBloqueados > 0 && (
-        <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex items-start gap-3">
-          <span className="text-xl">⚠️</span>
-          <p className="text-yellow-300 text-sm">
-            <strong>{partidosBloqueados} partido{partidosBloqueados > 1 ? 's' : ''}</strong> ya empezaron y no se pueden modificar. Los demás todavía están abiertos.
-          </p>
-        </div>
-      )}
-
       {/* Banner guardado */}
-      {saved && !cerrado && (
+      {saved && (
         <div className="mb-6 p-4 bg-green-500/15 border border-green-500/30 rounded-xl text-green-300 font-medium">
-          ✅ Pronósticos guardados correctamente. Podés editarlos hasta que empiece el primer partido.
+          ✅ Pronósticos de la Fecha {fechaActiva} guardados.
         </div>
       )}
 
-      <div className="flex flex-col gap-8">
+      {/* Partidos */}
+      <div className="flex flex-col gap-6">
         {sortedGrupos.map(([grupo, partidos]) => (
           <div key={grupo} className="bg-white/5 border border-white/10 rounded-2xl p-5">
             <h2 className="text-sm font-bold text-green-400 uppercase tracking-wider mb-4">
@@ -219,9 +246,7 @@ export default function PronosticosPage() {
                     <span className="text-gray-300 text-sm flex-1 text-right truncate">{m.team_home}</span>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <input
-                        type="number"
-                        min="0"
-                        max="20"
+                        type="number" min="0" max="20"
                         className="score-input"
                         value={p.home}
                         onChange={e => handleChange(m.id, 'home', e.target.value)}
@@ -230,9 +255,7 @@ export default function PronosticosPage() {
                       />
                       <span className="text-gray-500 font-bold">:</span>
                       <input
-                        type="number"
-                        min="0"
-                        max="20"
+                        type="number" min="0" max="20"
                         className="score-input"
                         value={p.away}
                         onChange={e => handleChange(m.id, 'away', e.target.value)}
@@ -252,21 +275,17 @@ export default function PronosticosPage() {
         ))}
       </div>
 
-      {/* Barra inferior — solo si no todo está cerrado */}
-      {!todoBloqueado && (
+      {/* Barra inferior */}
+      {!todoBloqueadoFecha && (
         <div className="sticky bottom-6 mt-8">
           <div className="bg-[#0a0f1e]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-4 flex items-center gap-4 max-w-lg mx-auto shadow-2xl">
-            <div className="text-sm text-gray-400 flex-1">
-              {(() => {
-                const editables = matches.filter(m => !esBloqueado(m))
-                const completadosEditables = editables.filter(m => {
-                  const p = preds[m.id]
-                  return p && p.home !== '' && p.away !== ''
-                }).length
-                return editables.length === completadosEditables
-                  ? <span className="text-green-400">✓ Todos los partidos completados</span>
-                  : <span className="text-yellow-400">{editables.length - completadosEditables} partidos sin completar</span>
-              })()}
+            <div className="text-sm flex-1">
+              {completadosFecha < matchesFecha.filter(m => !esBloqueado(m)).length
+                ? <span className="text-yellow-400">
+                    {matchesFecha.filter(m => !esBloqueado(m)).length - completadosFecha} partidos sin completar
+                  </span>
+                : <span className="text-green-400">✓ Todos los partidos completados</span>
+              }
             </div>
             {error && <span className="text-red-400 text-xs">{error}</span>}
             <button
@@ -274,7 +293,7 @@ export default function PronosticosPage() {
               disabled={saving}
               className="px-6 py-2.5 bg-green-500 hover:bg-green-400 disabled:opacity-50 text-black font-bold rounded-xl transition-colors shrink-0"
             >
-              {saving ? 'Guardando...' : 'Guardar pronósticos'}
+              {saving ? 'Guardando...' : `Guardar Fecha ${fechaActiva}`}
             </button>
           </div>
         </div>
