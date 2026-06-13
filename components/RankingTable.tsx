@@ -2,50 +2,22 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { RankingEntry, Prediction } from '@/lib/database.types'
+import type { RankingEntry } from '@/lib/database.types'
 
 export default function RankingTable() {
   const [ranking, setRanking] = useState<RankingEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const fetchRanking = useCallback(async () => {
-    const { data: participants } = await supabase
-      .from('participants')
-      .select('id, name')
-
-    const { data: predictions } = await supabase
-      .from('predictions')
-      .select('participant_id, points, match_id')
-
-    if (!participants) return
-
-    const rankingMap = new Map<string, RankingEntry>()
-    for (const p of participants) {
-      rankingMap.set(p.id, {
-        id: p.id,
-        name: p.name,
-        total_points: 0,
-        exact_results: 0,
-        correct_outcomes: 0,
-        predictions_count: 0,
-      })
+    const res = await fetch('/api/ranking')
+    if (!res.ok) {
+      setError('Error al cargar el ranking')
+      setLoading(false)
+      return
     }
-
-    for (const pred of (predictions ?? []) as Prediction[]) {
-      const entry = rankingMap.get(pred.participant_id)
-      if (!entry) continue
-      entry.total_points += pred.points
-      entry.predictions_count++
-      if (pred.points === 3) entry.exact_results++
-      if (pred.points === 1) entry.correct_outcomes++
-    }
-
-    const sorted = Array.from(rankingMap.values()).sort((a, b) => {
-      if (b.total_points !== a.total_points) return b.total_points - a.total_points
-      return b.exact_results - a.exact_results
-    })
-
-    setRanking(sorted)
+    const data: RankingEntry[] = await res.json()
+    setRanking(data)
     setLoading(false)
   }, [])
 
@@ -66,6 +38,10 @@ export default function RankingTable() {
         <div className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
       </div>
     )
+  }
+
+  if (error) {
+    return <div className="text-center py-12 text-red-400">{error}</div>
   }
 
   if (ranking.length === 0) {
