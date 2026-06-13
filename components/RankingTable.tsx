@@ -61,7 +61,7 @@ export default function RankingTable() {
             <th className="pb-3 pr-4">Participante</th>
             <th className="pb-3 pr-4 text-center">Pts</th>
             <th className="pb-3 pr-4 text-center hidden sm:table-cell">Exactos</th>
-            <th className="pb-3 text-center hidden sm:table-cell">Resultado</th>
+            <th className="pb-3 text-center hidden sm:table-cell">Parciales</th>
           </tr>
         </thead>
         <tbody>
