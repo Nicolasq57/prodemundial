@@ -150,7 +150,7 @@ export default function PronosticosPage() {
 
   const fechasDisponibles = [...new Set(allMatches.map(m => m.matchday))].sort()
   const matchesFecha = allMatches.filter(m => m.matchday === fechaActiva)
-  const todoBloqueadoFecha = matchesFecha.every(esBloqueado)
+  const todoBloqueadoFecha = matchesFecha.some(esBloqueado)
   const completadosFecha = matchesFecha.filter(m => {
     const p = preds[m.id]
     return p && p.home !== '' && p.away !== ''
