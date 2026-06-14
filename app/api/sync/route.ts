@@ -36,28 +36,12 @@ export async function POST() {
     const scoreHome = m.score.fullTime.home!
     const scoreAway = m.score.fullTime.away!
 
-    // Solo actualizar si cambió algo
-    const { data: existing } = await supabase
-      .from('matches')
-      .select('score_home, score_away, status')
-      .eq('id', m.id)
-      .single()
-
-    if (
-      existing &&
-      existing.status === 'finished' &&
-      existing.score_home === scoreHome &&
-      existing.score_away === scoreAway
-    ) {
-      continue
-    }
-
     await supabase
       .from('matches')
       .update({ score_home: scoreHome, score_away: scoreAway, status: 'finished' })
       .eq('id', m.id)
 
-    // Recalcular puntos de todos los pronósticos de este partido
+    // Siempre recalcular puntos para garantizar consistencia
     const { data: predictions } = await supabase
       .from('predictions')
       .select('id, predicted_home, predicted_away')
