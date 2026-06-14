@@ -12,12 +12,12 @@ export async function POST(request: Request) {
     match_id: p.match_id,
     predicted_home: p.predicted_home,
     predicted_away: p.predicted_away,
-    points: 0,
+    // No incluir points — el upsert preserva los puntos existentes en filas ya calculadas
   }))
 
   const { error } = await supabase
     .from('predictions')
-    .upsert(rows, { onConflict: 'participant_id,match_id' })
+    .upsert(rows, { onConflict: 'participant_id,match_id', ignoreDuplicates: false })
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
