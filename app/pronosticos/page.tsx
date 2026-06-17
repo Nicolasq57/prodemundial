@@ -148,9 +148,14 @@ export default function PronosticosPage() {
     )
   }
 
+  // Medianoche del 17/06/2026 hora Argentina (UTC-3)
+  const CIERRE_FECHA2 = new Date('2026-06-18T03:00:00Z')
+
   const fechasDisponibles = [...new Set(allMatches.map(m => m.matchday))].sort()
   const matchesFecha = allMatches.filter(m => m.matchday === fechaActiva)
-  const todoBloqueadoFecha = matchesFecha.some(esBloqueado)
+  const todoBloqueadoFecha =
+    matchesFecha.some(esBloqueado) ||
+    (fechaActiva === 2 && ahora >= CIERRE_FECHA2)
   const completadosFecha = matchesFecha.filter(m => {
     const p = preds[m.id]
     return p && p.home !== '' && p.away !== ''
