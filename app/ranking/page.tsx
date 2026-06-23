@@ -9,7 +9,7 @@ export default function RankingPage() {
       </div>
 
       <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl text-yellow-300 text-sm font-medium">
-        📣 Dejen de quejarse, carguen bien los resultados para la Fecha 2.
+        🍕 Buena suerte, que gane el mejor. El ganador tiene que pagar las pizzas para todos el lunes 29.
       </div>
 
       <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
