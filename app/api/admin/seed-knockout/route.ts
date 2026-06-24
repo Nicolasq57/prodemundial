@@ -1,13 +1,8 @@
 import { supabase } from '@/lib/supabase'
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'prode2026'
 const FOOTBALL_API_KEY = process.env.FOOTBALL_API_KEY || ''
 
-export async function POST(request: Request) {
-  const { password } = await request.json()
-  if (password !== ADMIN_PASSWORD) {
-    return Response.json({ error: 'No autorizado' }, { status: 401 })
-  }
+export async function POST() {
   if (!FOOTBALL_API_KEY) {
     return Response.json({ error: 'FOOTBALL_API_KEY no configurada' }, { status: 500 })
   }
