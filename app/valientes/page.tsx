@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 interface KnockoutMatch {
   id: number
   match_date: string
-  stage: string
+  group_name: string
   team_home: string
   team_away: string
   flag_home: string
@@ -230,7 +230,7 @@ export default function ValientesPage() {
       {/* Rondas */}
       <div className="flex flex-col gap-8">
         {ROUNDS.map(({ stage, label }) => {
-          const roundMatches = matches.filter(m => m.stage === stage)
+          const roundMatches = matches.filter(m => m.group_name === stage)
           if (roundMatches.length === 0) return null
 
           return (
@@ -242,7 +242,7 @@ export default function ValientesPage() {
                 {roundMatches.map(m => {
                   const p = preds[m.id] ?? { home: '', away: '' }
                   const bloqueado = esBloqueado(m)
-                  const indefinido = m.team_home === 'Por definir' || m.team_away === 'Por definir'
+                  const indefinido = !m.team_home || !m.team_away || m.team_home === 'Por definir' || m.team_away === 'Por definir'
 
                   return (
                     <div

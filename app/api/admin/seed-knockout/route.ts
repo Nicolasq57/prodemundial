@@ -36,7 +36,6 @@ export async function POST() {
     match_date: m.utcDate,
     matchday: 0,
     group_name: m.stage,
-    stage: m.stage,
     team_home: m.homeTeam?.shortName || m.homeTeam?.name || 'Por definir',
     team_away: m.awayTeam?.shortName || m.awayTeam?.name || 'Por definir',
     flag_home: m.homeTeam?.crest || '',

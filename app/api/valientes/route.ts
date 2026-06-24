@@ -6,9 +6,8 @@ export async function GET(request: Request) {
 
   const { data: matches, error } = await supabase
     .from('matches')
-    .select('id, match_date, stage, group_name, team_home, team_away, flag_home, flag_away, score_home, score_away, status')
-    .not('stage', 'eq', 'GROUP_STAGE')
-    .not('stage', 'is', null)
+    .select('id, match_date, group_name, team_home, team_away, flag_home, flag_away, score_home, score_away, status')
+    .eq('matchday', 0)
     .order('match_date', { ascending: true })
 
   if (error) {
