@@ -18,6 +18,15 @@ interface R32Match {
 
 type Picks = Record<string, string>
 
+interface StandingRow {
+  team: string
+  flag: string
+  pj: number
+  dg: number
+  gf: number
+  pts: number
+}
+
 // Estructura del bracket: cada ronda toma los ganadores de la anterior
 const ROUNDS = [
   { key: 'R32', count: 16, label: '16avos de Final' },
@@ -39,6 +48,7 @@ export default function ValientesPage() {
   const [nombre, setNombre] = useState('')
   const [r32, setR32] = useState<R32Match[]>([])
   const [picks, setPicks] = useState<Picks>({})
+  const [standings, setStandings] = useState<Record<string, StandingRow[]>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -81,7 +91,11 @@ export default function ValientesPage() {
   }, [getCompetitors])
 
   const fetchData = useCallback(async (id: string) => {
-    const res = await fetch(`/api/bracket?participant_id=${id}`)
+    const [res, stRes] = await Promise.all([
+      fetch(`/api/bracket?participant_id=${id}`),
+      fetch('/api/standings'),
+    ])
+    if (stRes.ok) setStandings(await stRes.json())
     if (!res.ok) { setLoading(false); return }
     const { r32: base, picks: saved } = await res.json()
     setR32(base)
@@ -156,17 +170,64 @@ export default function ValientesPage() {
   const bracketListo = r32.length === 16 && r32.every(m => !indefinido(m.home) && !indefinido(m.away))
 
   if (!bracketListo) {
+    const gruposOrdenados = Object.keys(standings).sort()
     return (
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Solo para Valientes 🔥</h1>
-        <p className="text-gray-400 text-sm mb-8">El bracket de la fase eliminatoria.</p>
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-10 text-center text-gray-400">
-          <p className="text-3xl mb-3">⏳</p>
-          <p className="font-medium text-white">Los cruces de 16avos todavía no están definidos.</p>
+        <p className="text-gray-400 text-sm mb-6">El bracket de la fase eliminatoria.</p>
+
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center text-gray-400 mb-8">
+          <p className="text-2xl mb-2">⏳</p>
+          <p className="font-medium text-white">Los cruces de 16avos se arman cuando termine la fase de grupos.</p>
           <p className="text-sm mt-1">
-            Cuando termine la fase de grupos van a aparecer los 32 clasificados y vas a poder armar tu llave completa hasta la final.
+            Mientras tanto, así van los grupos. Los <span className="text-green-400 font-medium">1º</span> y <span className="text-blue-400 font-medium">2º</span> clasifican directo;
+            los <span className="text-yellow-400 font-medium">8 mejores 3º</span> también entran.
           </p>
         </div>
+
+        {gruposOrdenados.length === 0 ? (
+          <p className="text-center text-gray-500 text-sm py-8">Todavía no hay resultados cargados.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {gruposOrdenados.map(g => (
+              <div key={g} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                <h2 className="text-sm font-bold text-red-400 uppercase tracking-wider mb-3">Grupo {g}</h2>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] text-gray-500 uppercase">
+                      <th className="text-left font-medium pb-1.5">Equipo</th>
+                      <th className="font-medium pb-1.5 w-7 text-center">PJ</th>
+                      <th className="font-medium pb-1.5 w-7 text-center">DG</th>
+                      <th className="font-medium pb-1.5 w-7 text-center">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {standings[g].map((r, idx) => (
+                      <tr key={r.team} className="border-t border-white/5">
+                        <td className="py-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-4 text-xs font-bold text-center ${
+                              idx === 0 ? 'text-green-400' : idx === 1 ? 'text-blue-400' : idx === 2 ? 'text-yellow-400' : 'text-gray-600'
+                            }`}>{idx + 1}</span>
+                            {r.flag
+                              ? <img src={r.flag} alt="" className="w-5 h-5 object-contain shrink-0" />
+                              : <span className="w-5 h-5 shrink-0" />}
+                            <span className={`truncate ${idx < 2 ? 'text-white' : idx === 2 ? 'text-gray-200' : 'text-gray-400'}`}>
+                              {r.team}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-center text-gray-400">{r.pj}</td>
+                        <td className="text-center text-gray-400">{r.dg > 0 ? `+${r.dg}` : r.dg}</td>
+                        <td className="text-center text-white font-bold">{r.pts}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
