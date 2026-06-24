@@ -26,6 +26,7 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(false)
   const [seedStatus, setSeedStatus] = useState('')
+  const [seedKnockoutStatus, setSeedKnockoutStatus] = useState('')
   const [resultados, setResultados] = useState<Record<number, { home: string; away: string }>>({})
   const [saving, setSaving] = useState<number | null>(null)
   const [msg, setMsg] = useState<{ id: number; text: string; ok: boolean } | null>(null)
@@ -66,6 +67,23 @@ export default function AdminPage() {
       loadMatches()
     } else {
       setSeedStatus(`❌ ${data.error}`)
+    }
+  }
+
+  async function seedKnockout() {
+    setSeedKnockoutStatus('Importando eliminatorias...')
+    const res = await fetch('/api/admin/seed-knockout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setSeedKnockoutStatus(data.seeded === 0
+        ? `⏳ ${data.message}`
+        : `✅ ${data.seeded} partidos eliminatorios importados`)
+    } else {
+      setSeedKnockoutStatus(`❌ ${data.error}`)
     }
   }
 
@@ -136,6 +154,12 @@ export default function AdminPage() {
             Importar fixture desde API
           </button>
           <button
+            onClick={seedKnockout}
+            className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white font-medium rounded-xl text-sm transition-colors"
+          >
+            🔥 Importar eliminatorias
+          </button>
+          <button
             onClick={loadMatches}
             className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl text-sm transition-colors"
           >
@@ -147,6 +171,12 @@ export default function AdminPage() {
       {seedStatus && (
         <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-300">
           {seedStatus}
+        </div>
+      )}
+
+      {seedKnockoutStatus && (
+        <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-300">
+          {seedKnockoutStatus}
         </div>
       )}
 
